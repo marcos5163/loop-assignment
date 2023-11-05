@@ -2,23 +2,23 @@ from django.db import models
 
 class StoreObservations(models.Model):
     store_id = models.CharField(max_length=200)
-    timestamp_utc = models.DateTimeField()
-    status = models.BooleanField()
+    timestamp_utc = models.DateTimeField(db_index=True)
+    status = models.BooleanField(db_index=True)
 
     class Meta:
       unique_together = ('store_id', 'timestamp_utc')
 
 
 class StoreBusinessHours(models.Model):
-    store_id=  models.CharField(max_length=200)
-    day_of_week = models.IntegerField()
-    start_time_local= models.TimeField()
-    end_time_local = models.TimeField()
+    store_id=  models.CharField(max_length=200, db_index=True)
+    day_of_week = models.IntegerField(db_index=True)
+    start_time_local= models.TimeField(db_index = True)
+    end_time_local = models.TimeField(db_index=True)
 
 
 class StoreTimezone(models.Model):
-    store_id = models.CharField(max_length=200, unique=True)
-    timezone_str = models.CharField(max_length=200)
+    store_id = models.CharField(max_length=200, unique=True, db_index=True)
+    timezone_str = models.CharField(max_length=200, db_index=True)
 
 class Report(models.Model):
     
