@@ -5,6 +5,19 @@ from datetime import timedelta, datetime
 
 
 class UptimeDowntimeCalculationService:
+    """
+    This service is responsible for calculating uptime and downtime over different periods.
+
+     - Initially considering the max timestamp in the store observation data as points of reference to define last hours, day or week.
+     - After considering a particular period for calculation for a store, 
+       finding the overlap between a period considered and the business hours.
+     - Then Checking if there's a obervation during that duration, 
+       if yes, then deciding the activity based on that observation
+       Otherwise that duration will be considered as completely inactive or downtime.  
+     - Using the crude logic to extrapolate the overlapping time interval, based on previous
+       observation timestamp and current timestamp.    
+    
+    """
     
     def __init__(self):
         pass
