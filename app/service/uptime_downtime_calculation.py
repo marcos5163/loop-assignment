@@ -7,13 +7,15 @@ store_id_to_timezone_map = {timezone.store_id: timezone.timezone_str for timezon
 
 
 class UptimeDowntimeCalculationService:
+    
     """
     This service is responsible for calculating uptime and downtime over different periods.
 
      - Initially considering the max timestamp in the store observation data as points of reference to define last hours, day or week.
      - After considering a particular period for calculation for a store, 
        finding the overlap between a period considered and the business hours.
-     - Then Checking if there's a obervation during that duration, 
+     - If no overlap is found, then complete interval will be marked as downtime. 
+     - Otherwise, Checking if there's a obervation during that duration, 
        if yes, then deciding the activity based on that observation
        Otherwise that duration will be considered as completely inactive or downtime.  
      - Using the crude logic to extrapolate the overlapping time interval, based on previous
@@ -48,10 +50,13 @@ class UptimeDowntimeCalculationService:
         Calculate the overlap between a given period and business hours.
         Return the overlap in seconds.
         """
+        period_start_local = period_start.time()
+        period_end_local = period_end.time()
 
-        store_timezone = timezone(store_id_to_timezone_map[store_id])
-        period_start_local = period_start.astimezone(store_timezone).time()
-        period_end_local = period_end.astimezone(store_timezone).time()
+        if store_id_to_timezone_map.get(store_id):
+            store_timezone = timezone(store_id_to_timezone_map[store_id])
+            period_start_local = period_start.astimezone(store_timezone).time()
+            period_end_local = period_end.astimezone(store_timezone).time()
         overlap = 0
         
         for business_start in business_hours:
@@ -82,35 +87,37 @@ class UptimeDowntimeCalculationService:
         ).order_by('timestamp_utc'))
 
         
-        last_status = 'inactive'
+        last_status = False
         last_timestamp = period_start
       
         for observation in observations:
            
             current_overlap = self._calculate_overlap(period_start = last_timestamp, period_end= observation.timestamp_utc,business_hours= business_hours, store_id= store_id)
             
-         
-            if last_status == 'active' and current_overlap > 0:
+            
+            if last_status and current_overlap > 0:
                 uptime += current_overlap
+
             else:
                 downtime += (observation.timestamp_utc - last_timestamp).total_seconds()
-            
+               
            
             last_status = observation.status
             last_timestamp = observation.timestamp_utc
 
        
         final_overlap = self._calculate_overlap(last_timestamp, period_end, business_hours, store_id)
-        if last_status == 'active' and final_overlap > 0:
-            uptime += final_overlap
-        else:
-            downtime += (period_end - period_start).total_seconds()
         
-        # print(f"uptime : {uptime}", f"downtime : {downtime}")
+        if last_status and final_overlap > 0:
+            uptime += final_overlap
+            
+        else:
+            downtime += (period_end - last_timestamp).total_seconds()
+    
         return (uptime, downtime)
 
     
-    def calculate_uptime_downtime_for_period(self, store_id: str, store_id_to_business_hours_map_in_utc : dict, period_start : datetime, period_end : datetime) -> tuple[int, int]:
+    def calculate_uptime_downtime_for_period(self, store_id: str, store_id_to_business_hours_map_in_utc : dict, period_end : datetime, period_start : datetime) -> tuple[int, int]:
         """
         Calculate the uptime and downtime for the given period.
         """
@@ -142,10 +149,10 @@ class UptimeDowntimeCalculationService:
         periods = {"last_hour" : last_polled_timestamp - timedelta(hours=1), "last_day" : last_polled_timestamp - timedelta(days = 1), "last_week": last_polled_timestamp - timedelta(weeks=1)}
 
         
-        for store_id in store_id_to_business_hours_map:     
+        for store_id in store_id_to_business_hours_map:    
             for period in periods:
                 
-                # print(f"Calculating uptime and downtime for {period} for store_id ={store_id}")
+                print(f"Calculating uptime and downtime for {period} for store_id ={store_id}")
                 (active_time, inactive_time) = self.calculate_uptime_downtime_for_period( store_id = store_id, store_id_to_business_hours_map_in_utc =store_id_to_business_hours_map, period_end=last_polled_timestamp, period_start=periods[period])
                 
                 uptime[period] = active_time

@@ -34,7 +34,6 @@ def report_generation(report_id: str):
 
         except Exception as e:
             print(e)
-        
             report.generation_retry_count = retry_count + 1
             report.save()
 
