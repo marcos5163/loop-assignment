@@ -30,8 +30,8 @@ class ReportGenerationViewSet(ViewSet):
         if report is None:
             return Response(status=HTTP_400_BAD_REQUEST, data = {"error": "Invalid report id"})
         
-        if report.status == Report.IN_PROCESS:
-            return Response(status=HTTP_200_OK, data = {"report_status": report.status})
         
         if report.status == Report.COMPLETED:
             return Response(status=HTTP_200_OK, data={"report_status": report.status, "report": report.report_link})
+        
+        return Response(status=HTTP_200_OK, data={"report_status": report.status})

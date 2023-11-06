@@ -6,7 +6,7 @@ import csv
 
 
 @celery_app.task
-def report_generation(report_id):
+def report_generation(report_id: str):
     report = Report.objects.filter(report_id=report_id, status=Report.INITIATED).first()
 
     for retry_count in range(3):
@@ -34,6 +34,7 @@ def report_generation(report_id):
 
         except Exception as e:
             print(e)
+        
             report.generation_retry_count = retry_count + 1
             report.save()
 
