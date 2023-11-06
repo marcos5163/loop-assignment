@@ -32,6 +32,16 @@ class ReportGenerationViewSet(ViewSet):
         
         
         if report.status == Report.COMPLETED:
-            return Response(status=HTTP_200_OK, data={"report_status": report.status, "report": report.report_link})
+           
+            report_file_path = report.report_link
+            
+            with open(report_file_path, 'r') as file:
+                report_data = file.read()
+
+            response = Response(report_data, headers={'content-type': 'text/csv'})
+
+            response['Content-Disposition'] = 'attachment; filename="store_monitoring_report.csv"'  
+
+            return response
         
         return Response(status=HTTP_200_OK, data={"report_status": report.status})

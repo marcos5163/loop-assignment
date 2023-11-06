@@ -3,11 +3,11 @@ from django.db.models import Max
 from pytz import timezone
 from datetime import timedelta, datetime
 
-store_id_to_timezone_map = {timezone.store_id: timezone.timezone_str for timezone in StoreTimezone.objects.all()}
 
+           
 
 class UptimeDowntimeCalculationService:
-    
+
     """
     This service is responsible for calculating uptime and downtime over different periods.
 
@@ -24,9 +24,27 @@ class UptimeDowntimeCalculationService:
     """
     
     def __init__(self):
-        pass
+        self.store_id_to_timezone_map = {timezone.store_id: timezone.timezone_str for timezone in list(StoreTimezone.objects.all())}
+        """
+        To avoid N+1 queries creating map for store_id to timezone.
+
+        For same reason creating this map for store observation, it looks like {"store_id" : {"timestamp1": "status", "timestamp2": "status"}}
+        """
+
+        self.store_observation_map = {}
+
+        for observation in list(StoreObservations.objects.all().order_by('timestamp_utc')):
+            
+            if self.store_observation_map.get(observation.store_id):
+                self.store_observation_map[observation.store_id][observation.timestamp_utc] = observation.status
+            
+            self.store_observation_map = {observation.store_id : {observation.timestamp_utc : observation.status}}
+
 
     def create_store_id_to_business_hours_map(self, store_business_hours_queryset : list[StoreBusinessHours]) -> dict:
+        """
+        This map will look like {"store_id": {"day_of_week": {"start_time": "end_time"}}}
+        """
         print("Creating a map for store to weekwise business hours")
         
         store_id_to_business_hours_map = {}
@@ -53,8 +71,8 @@ class UptimeDowntimeCalculationService:
         period_start_local = period_start.time()
         period_end_local = period_end.time()
 
-        if store_id_to_timezone_map.get(store_id):
-            store_timezone = timezone(store_id_to_timezone_map[store_id])
+        if self.store_id_to_timezone_map.get(store_id):
+            store_timezone = timezone(self.store_id_to_timezone_map[store_id])
             period_start_local = period_start.astimezone(store_timezone).time()
             period_end_local = period_end.astimezone(store_timezone).time()
         overlap = 0
@@ -79,31 +97,31 @@ class UptimeDowntimeCalculationService:
         uptime = 0
         downtime = 0
 
-        
-        observations = list(StoreObservations.objects.filter(
-            store_id=store_id,
-            timestamp_utc__gte=period_start,
-            timestamp_utc__lte=period_end
-        ).order_by('timestamp_utc'))
+        observation_within_period = {}
+
+        if self.store_observation_map.get(store_id):
+            for timestamp, status in self.store_observation_map[store_id].items():
+                if period_start <= timestamp <= period_end:
+                    observation_within_period[timestamp] = status
 
         
         last_status = False
         last_timestamp = period_start
       
-        for observation in observations:
+        for observation_timestamp, status in observation_within_period.items():
            
-            current_overlap = self._calculate_overlap(period_start = last_timestamp, period_end= observation.timestamp_utc,business_hours= business_hours, store_id= store_id)
+            current_overlap = self._calculate_overlap(period_start = last_timestamp, period_end= observation_timestamp ,business_hours= business_hours, store_id= store_id)
             
             
             if last_status and current_overlap > 0:
                 uptime += current_overlap
 
             else:
-                downtime += (observation.timestamp_utc - last_timestamp).total_seconds()
+                downtime += (observation_timestamp - last_timestamp).total_seconds()
                
            
-            last_status = observation.status
-            last_timestamp = observation.timestamp_utc
+            last_status = status
+            last_timestamp = observation_timestamp
 
        
         final_overlap = self._calculate_overlap(last_timestamp, period_end, business_hours, store_id)
@@ -122,8 +140,11 @@ class UptimeDowntimeCalculationService:
         Calculate the uptime and downtime for the given period.
         """
         
-       
-        business_hours_for_period = store_id_to_business_hours_map_in_utc.get(store_id, {}).get(period_start.weekday(), [])
+        business_hours_for_period = {}
+
+        for day_of_week in store_id_to_business_hours_map_in_utc[store_id]:
+            if period_start.weekday() <= day_of_week <= period_end.weekday():
+                business_hours_for_period.update(store_id_to_business_hours_map_in_utc[store_id][day_of_week])
         
        
         (uptime, downtime) = self._calculate_uptime_downtime(
@@ -139,7 +160,7 @@ class UptimeDowntimeCalculationService:
         
         last_polled_timestamp = StoreObservations.objects.aggregate(last_poll_timestamp = Max("timestamp_utc"))['last_poll_timestamp']
       
-        store_id_to_business_hours_map = self.create_store_id_to_business_hours_map(list(StoreBusinessHours.objects.all()))
+        store_id_to_business_hours_map = self.create_store_id_to_business_hours_map(list(StoreBusinessHours.objects.all().order_by('day_of_week')))
 
 
         uptime = {"last_hour": 0, "last_day": 0, "last_week": 0}

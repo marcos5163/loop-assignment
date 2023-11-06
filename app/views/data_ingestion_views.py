@@ -20,7 +20,7 @@ class StoreDataIngestionViewSet(viewsets.ViewSet):
 
         existing_timestamp_to_store_id_map = {}
 
-        existing_store_observations_queryset  = StoreObservations.objects.all()
+        existing_store_observations_queryset  = list(StoreObservations.objects.all())
 
         for observations in existing_store_observations_queryset:
             existing_timestamp_to_store_id_map[(observations.timestamp_utc, observations.store_id)] = True
