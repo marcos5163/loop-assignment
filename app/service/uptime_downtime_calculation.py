@@ -38,7 +38,7 @@ class UptimeDowntimeCalculationService:
             if self.store_observation_map.get(observation.store_id):
                 self.store_observation_map[observation.store_id][observation.timestamp_utc] = observation.status
             
-            self.store_observation_map = {observation.store_id : {observation.timestamp_utc : observation.status}}
+            self.store_observation_map[observation.store_id] = {observation.timestamp_utc : observation.status}
 
 
     def create_store_id_to_business_hours_map(self, store_business_hours_queryset : list[StoreBusinessHours]) -> dict:
