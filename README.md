@@ -12,7 +12,9 @@ This is django project named **loop_assignment**, using postgres as database, ce
 - **UptimeDowntimeCalculationService** [service](https://github.com/marcos5163/loop-assignment/blob/master/app/service/uptime_downtime_calculation.py) is responsible for calculating
   the uptime and downtime for the required time intervals. logic for calculation is written as a docs string in this service. 
 
-- Basic [Tests](https://github.com/marcos5163/loop-assignment/blob/master/app/tests.py) for both APIs     
+- Basic [Tests](https://github.com/marcos5163/loop-assignment/blob/master/app/tests.py) for both APIs
+
+[Here](https://raw.githubusercontent.com/marcos5163/loop-assignment/master/report/store_monitoring_report.csv)is the final generated report.
   
   
   
